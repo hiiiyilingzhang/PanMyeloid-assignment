@@ -1,6 +1,8 @@
 # 😭 TROUBLESHOOTING
 
-## Environment Setting--file size doesn't match expectation
+## Environment Setting
+
+### file size doesn't match expectation
 
 ![](.gitbook/assets/image-20211027094707372.png)
 
@@ -25,7 +27,9 @@ replacing `memba install`with `conda install` is perfectly normal\
  conda config --set show_channel_urls yes
 ```
 
-## Initialize Data--invalid compressed data length error
+## Initialize Data
+
+### invalid compressed data length error
 
 ![](.gitbook/assets/image.png)
 
@@ -44,7 +48,43 @@ FTP transfer files based on **netascii** by default, not binary, which will caus
 
 [**gzip: stdin: invalid compressed data--format violated ftp ascii transfer**](https://www.linuxquestions.org/questions/linux-software-2/gzip-stdin-invalid-compressed-data-format-violated-ftp-ascii-transfer-629128/?\_\_cf\_chl\_jschl\_tk\_\_=pmd\_5icZZ6dIDO4xRyw0EcfhjwzdaSaBMKFdUAn4XWhwtYU-1635323229-0-gqNtZGzNAuWjcnBszQjl)
 
+## Version-related Errors
 
+### bbknn and umap-learn
+
+> TypeError: bbknn() got an unexpected keyword argument 'save\_knn'
+>
+> msg() got an unexpected keyword argument 'deep'
+>
+> AxisArrays' object has no attribute 'dtype'
+>
+> AttributeError: 'tuple' object has no attribute 'tocsr'
+
+Errors above are all about the package version. Here we can see the different input parameters in `bbknn()` and `sc.external.pp.bbknn()`
+
+![](.gitbook/assets/image-20211030185305847.png)
+
+{% embed url="https://github.com/theislab/scanpy/issues/770" %}
+
+{% embed url="https://github.com/theislab/anndata/issues/181" %}
+
+{% embed url="https://githubmemory.com/repo/Teichlab/bbknn/issues/10" %}
+
+{% embed url="https://github.com/theislab/scanpy/issues/1249" %}
+
+* bbknn \_\__init\_\__got changes in 1.3.0
+
+![](.gitbook/assets/image-20211030192329372.png)
+
+* Modify the input parameter again in 1.3.2
+
+![](.gitbook/assets/image-20211030194234874.png)
+
+* Support `.keys` instead `.obsm` in 1.3.4
+
+![](.gitbook/assets/image-20211031124029432.png)
+
+* Problem solved by using** bbknn 1.3.4** and **umap-learn 1.3.9**
 
 ## Random Errors
 
