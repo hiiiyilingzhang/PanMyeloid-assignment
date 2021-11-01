@@ -31,23 +31,160 @@ knitr::opts_chunk$set(
 # 1. Environment Setting
 
 ```{r}
+# Single-cell required
 library(Seurat)
+library(SeuratDisk)
+
+# For data analysis
 library(dplry)
+library(data.table)
+library(stringr)
+
+# For plotting
 library(ggplot2)
 library(cowplot)
+library(ggridges)
+library(ggsci)
+library(ggraph)
+library(clustree)
 ```
 
 ```{r}
 packageVersion("Seurat")
 ```
 
-# 2. Collected Dataset(MEL) Preprocessing
-## 2.1 Create Seurat Object
-```{r}
+# 2. Collected Dataset(LUNG) Preprocessing
+## 2.1 Convert to Seurat Object
+```{r cache=TRUE}
+Convert("../processedData/scanpy_qc_filtered_LUNG.h5ad", dest = "h5seurat", overwrite = TRUE)
+LUNG <- LoadH5Seurat("../processedData/scanpy_qc_filtered_LUNG.h5seurat")
+LUNG
+```
 
+## 2.2 Add MetaData
+```{r}
+meta <- read.table("../rawData/LUNG/meta/GSE127465_human_cell_metadata_54773x25.tsv.gz",header = T,sep = "\t")
+head(meta)
+```
+
+```{r}
+metaNow <- LUNG@meta.data
+metaNow$Barcode <- rownames(metaNow)
+metaNow[,"Barcode"] <- unlist(lapply(metaNow$Barcode,function(x){return(strsplit(x, "-")[[1]][1])}))
+
+colnames(meta)[1] <- "patient"
+meta <- meta[which(meta$Library %in% c("p1b1","p1t1","p2b1","p2t1","p3b1","p3t1","p4b1","p4t1","p5t1","p6b1","p6t1","p7b1","p7t1")),]
+meta[,"patient"] <- unlist(lapply(meta$patient,function(x){paste0("LUNG_",x)}))
+meta <- select(meta,-one_of("used_in_NSCLC_all_cells","x_NSCLC_all_cells","y_NSCLC_all_cells","used_in_NSCLC_and_blood_immune","x_NSCLC_and_blood_immune","y_NSCLC_and_blood_immune","used_in_NSCLC_immune","x_NSCLC_immune","y_NSCLC_immune","used_in_NSCLC_non_immune","x_NSCLC_non_immune","y_NSCLC_non_immune","used_in_blood","x_blood","y_blood"))
+
+usedCol <- metaNow[,c("Barcode","patient")]
+usedCol <- merge(usedCol, meta, by = c("Library","Barcode"),all.x = TRUE)
+usedCol <- unique(usedCol)
+
+mergedData <- AddMetaData(object = mergedData, metadata = usedCol)
+```
+```
+
+## 2.2 Annotation
+### 2.2.1 Normalization
+
+```{r cache = TRUE}
+LUNG <- SCTransform(LUNG, vars.to.regress = c("percent_mito","percent_hsp"), variable.features.n = 3000, verbose = F, seed.use = 27)
+```
+
+### 2.2.2 Dimensional reduction
+
+* PCA
+```{r fig.width = 5}
+# Run PCA
+LUNG <- RunPCA(LUNG, npcs = 40, verbose = FALSE)
+ElbowPlot(LUNG, ndims = 40)
+```
+
+```{r}
+# Set PC number
+pc.num=1:30
+```
+
+* UMAP & TSNE
+```{r}
+LUNG <- RunUMAP(LUNG, dims = pc.num,verbose = F)
+LUNG <- RunTSNE(object = LUNG, dims = pc.num, check_duplicates = FALSE)
+```
+
+### 2.2.3 Clustering cells
+
+```{r}
+# Determine the K-nearest neighbor graph
+LUNG <- FindNeighbors(object = LUNG, dims = pc.num)
+LUNG <- FindClusters(LUNG, resolution = 0.2)
+```
+
+```{r fig.width=9}
+p1 <- DimPlot(LUNG, reduction = "tsne", label = TRUE, label.size = 6)
+p2 <- DimPlot(LUNG, reduction = "umap", label = TRUE, label.size = 6)
+plot_grid(p1, p2,rel_widths = c(2,2))
+```
+
+### 2.2.4 SingleR Annotation
+```{r}
+library(SingleR)
+library(scater)
+```
+
+```{r}
+# load the ref and choose intersection
+# load("../rawData/anno.ref/hpca-se.RData")
+# save(ImmGen, file = "../rawData/anno.ref/ImmGen.RData")
+load("../rawData/anno.ref/ImmGen.RData")
+
+common_ImmGen <- intersect(rownames(LUNG), rownames(ImmGen))
+ImmGen <- ImmGen[common_hpca,]
+MEL_forImmGen <- SummarizedExperiment(assays=list(LUNG[common_hpca,])) %>% logNormCounts()
+MEL_forImmGen[["seurat_cluster"]] <- LUNG$seurat_clusters
+
+# marker detection mode
+pred.main.ImmGen <- SingleR(test = MEL_forImmGen, ref = ImmGen,
+                          labels = ImmGen$label.main,de.method="wilcox",
+                          clusters = MEL_forImmGen$seurat_cluster)
+table(pred.main.ImmGen$labels)
+
+result_main_ImmGen <- as.data.frame(pred.main.ImmGen$labels)
+result_main_ImmGen$CB <- rownames(pred.main.hpca)
+colnames(result_main_ImmGen) <- c('ImmGen_Main', 'seurat_clusters')
+
+write.table(result_main_ImmGen, file = "data/ERM.obj/annoRef/ImmGen_Main_Res3.txt", sep = '\t', row.names = FALSE, col.names = TRUE, quote = FALSE)
 ```
 
 
+
+### 2.2.5 Marker-based Annotation
+
+> **RESULTS**: We performed unsupervised graph-based clustering on myeloid cells and then identified four common major linages (mast cells, pDCs, cDCs, monocytes, or macrophages) based on canonical cell markers. In addition, cDCs and monocytes or macrophages could be further divided into multiple sub-populations (Figure S1C, STAR methods). Using esophageal carcinoma (ESCA) as an example, mast cells, pDCs, cDCs, and monocytes/macrophages were characterized by specific high expression of KIT, LILRA4, HLA/FCER1A, and CD68/CD163, respectively (Figures 1C and 1D). Three distinct subsets in cDCs were identified (Figures 1E and S1C), including two classical cDC subsets (CLEC9A+ cDC1s and CD1C+ cDC2s) and a mature cDC subset (LAMP3+ cDC) recently characterized.
+
+```{r}
+celltype_marker_main <- c(
+  "KIT", # Mast
+  "LILRA4", # pDCs
+  "HLA","FCER1A", # cDCs
+  "CD163","CD68"# Mono/Macro
+)
+
+celltype_marker_fine <- c(
+  "CLEC9A", # cDC1 CLEC9A
+  "CD1C", # cDC2 CD1C
+  "LAMP3",# cDC3 LAMP3
+  "CD14", # Mono_CD14
+  "CD16", # Mono_CD16
+  "VCAN", # Macro_VCAN
+  "ISG15", # Macro_ISG15
+  "C1QC", # Macro_C1QC
+  "MK167" # Myeloid_MK167
+)
+
+FeaturePlot(object = LUNG, features = celltype_marker_fine, cols = c("grey", "blue"), reduction = "umap")
+VlnPlot(LUNG,features = celltype_marker_fine,pt.size = 0,ncol = 2)
+```
 
 
 # Supplemental Information
