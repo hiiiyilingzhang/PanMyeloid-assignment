@@ -33,6 +33,7 @@ knitr::opts_chunk$set(
 ```{r}
 # Single-cell required
 library(Seurat)
+library(SeuratData)
 library(SeuratDisk)
 
 # For data analysis
@@ -47,99 +48,292 @@ library(ggridges)
 library(ggsci)
 library(ggraph)
 library(clustree)
+library(ggplotass)
+library(ggplotAssist)
 ```
 
 ```{r}
 packageVersion("Seurat")
 ```
 
-# 2. Collected Dataset(LUNG) Preprocessing
-## 2.1 Convert to Seurat Object
+# 2. Import and Examine Data
+
+```{r}
+hfile <- Connect("../processedData/alldata.obj/regressed-alldata.h5seurat")
+hfile$index()
+```
+
+```{r include=FALSE}
+hfile$close_all()
+```
+
 ```{r cache=TRUE}
-Convert("../processedData/scanpy_qc_filtered_LUNG.h5ad", dest = "h5seurat", overwrite = TRUE)
-LUNG <- LoadH5Seurat("../processedData/scanpy_qc_filtered_LUNG.h5seurat")
-LUNG
-```
-
-## 2.2 Add MetaData
-```{r}
-meta <- read.table("../rawData/LUNG/meta/GSE127465_human_cell_metadata_54773x25.tsv.gz",header = T,sep = "\t")
-head(meta)
+# Convert("../processedData/alldata.obj/regressed-alldata.h5ad", dest = "h5seurat", overwrite = TRUE)
+alldata <- LoadH5Seurat("../processedData/alldata.obj/regressed-alldata.h5seurat",meta.data=F)
+alldata.meta <- read.csv("../processedData/alldata.obj/alldata-metadata.csv",header = T, row.names = 1)
+alldata@meta.data <- alldata.meta
+alldata
 ```
 
 ```{r}
-metaNow <- LUNG@meta.data
-metaNow$Barcode <- rownames(metaNow)
-metaNow[,"Barcode"] <- unlist(lapply(metaNow$Barcode,function(x){return(strsplit(x, "-")[[1]][1])}))
-
-colnames(meta)[1] <- "patient"
-meta <- meta[which(meta$Library %in% c("p1b1","p1t1","p2b1","p2t1","p3b1","p3t1","p4b1","p4t1","p5t1","p6b1","p6t1","p7b1","p7t1")),]
-meta[,"patient"] <- unlist(lapply(meta$patient,function(x){paste0("LUNG_",x)}))
-meta <- select(meta,-one_of("used_in_NSCLC_all_cells","x_NSCLC_all_cells","y_NSCLC_all_cells","used_in_NSCLC_and_blood_immune","x_NSCLC_and_blood_immune","y_NSCLC_and_blood_immune","used_in_NSCLC_immune","x_NSCLC_immune","y_NSCLC_immune","used_in_NSCLC_non_immune","x_NSCLC_non_immune","y_NSCLC_non_immune","used_in_blood","x_blood","y_blood"))
-
-metaNow <- merge(metaNow, meta, by = c("Library","Barcode"),sort=F, all.x=TRUE)
-metaNow <- unite(metaNow,"index",c("Barcode","batch"), sep="-", remove = F)
-rownames(metaNow) <- metaNow$index
-
-LUNG <- AddMetaData(object = LUNG, metadata = metaNow)
-LUNG@meta.data <- select(LUNG@meta.data, -one_of("index","patient.y"))
-```
-
-Convert to h5ad for AnnData
-```{r}
-SaveH5Seurat(LUNG, filename = "../processedData/metadata_added_filtered_LUNG.h5Seurat")
-Convert("../processedData/metadata_added_filtered_LUNG.h5Seurat", dest = "h5ad")
-```
-
-## 2.3 Marker-based Annotation
-
-> **RESULTS**: We performed unsupervised graph-based clustering on myeloid cells and then identified four common major linages (mast cells, pDCs, cDCs, monocytes, or macrophages) based on canonical cell markers. In addition, cDCs and monocytes or macrophages could be further divided into multiple sub-populations (Figure S1C, STAR methods). Using esophageal carcinoma (ESCA) as an example, mast cells, pDCs, cDCs, and monocytes/macrophages were characterized by specific high expression of KIT, LILRA4, HLA/FCER1A, and CD68/CD163, respectively (Figures 1C and 1D). Three distinct subsets in cDCs were identified (Figures 1E and S1C), including two classical cDC subsets (CLEC9A+ cDC1s and CD1C+ cDC2s) and a mature cDC subset (LAMP3+ cDC) recently characterized.
-
-```{r}
-celltype_marker_main <- c(
-  "KIT", # Mast
-  "LILRA4", # pDCs
-  "HLA","FCER1A", # cDCs
-  "CD163","CD68"# Mono/Macro
-)
-
-celltype_marker_fine <- c(
-  "CLEC9A", # cDC1 CLEC9A
-  "CD1C", # cDC2 CD1C
-  "LAMP3",# cDC3 LAMP3
-  "CD14", # Mono_CD14
-  "CD16", # Mono_CD16
-  "VCAN", # Macro_VCAN
-  "ISG15", # Macro_ISG15
-  "C1QC", # Macro_C1QC
-  "MK167" # Myeloid_MK167
-)
+head(alldata@meta.data)
 ```
 
 ```{r}
-LUNG <- SCTransform(LUNG, vars.to.regress = c("percent_mito","percent_hsp"), variable.features.n = 2000, verbose = F, seed.use = 27)
-LUNG <- RunPCA(LUNG, npcs = 30, verbose = FALSE)
-LUNG <- RunUMAP(LUNG, dims = 1:30)
-LUNG <- RunTSNE(object = LUNG, dims = 1:30,check_duplicates = FALSE)
-LUNG <- FindNeighbors(object = LUNG, dims = 1:30)
-LUNG <- FindClusters(LUNG, resolution = 0.1)
+alldata@meta.data %>% 
+    ggplot(aes(x=patient, fill=patient)) + 
+    geom_bar() +
+    theme_classic() +
+    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
+    theme(plot.title = element_text(hjust=0.5, face="bold"),legend.position="none") +
+    ggtitle("NCells")
 ```
 
-```{r fig.width=10}
-# Plot the tSNE
-p1 <- DimPlot(LUNG, reduction = "tsne", label = TRUE, label.size = 6)
-# Plot the UMAP
-p2 <- DimPlot(LUNG, reduction = "umap", label = TRUE, label.size = 6)
-plot_grid(p1, p2,rel_widths = c(2,2))
+```{r fig.width=5}
+alldata@meta.data %>% 
+    ggplot(aes(x=tech_10X, fill=tech_10X)) + 
+    geom_bar() +
+    theme_classic() +
+    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
+    theme(plot.title = element_text(hjust=0.5, face="bold"),legend.position="none") +
+    ggtitle("NCells") + 
+    scale_fill_simpsons()
+```
+
+# 3. Dimensionality Reduction
+
+```{r cache = TRUE,fig.width = 5}
+alldata <- FindVariableFeatures(alldata,selection.method = "vst",nfeatures = 2000)
+alldata <- RunPCA(alldata, npcs = 100, verbose = FALSE)
+ElbowPlot(alldata,ndims = 100)
 ```
 
 ```{r}
-FeaturePlot(object = LUNG, features = celltype_marker_main, cols = c("grey", "blue"), reduction = "umap")
+# Set dim
+pc.num=1:100
+```
+
+```{r cache=TRUE}
+# Run UMAP
+alldata <- RunUMAP(alldata, dims = pc.num, reduction = "pca")
+alldata <- RunTSNE(alldata, dims = pc.num)
+```
+
+```{r fig.width = 12}
+p1 <- DimPlot(alldata, group.by = "patient", reduction = "umap") + NoLegend()
+p2 <- DimPlot(alldata, group.by = "patient", reduction = "tsne") + NoLegend()
+plot_grid(p1,p2,rel_widths = c(2,2))
+```
+
+```{r fig.width = 12}
+p3 <- DimPlot(alldata, group.by = "tech_10X", reduction = "umap") 
+p4 <- DimPlot(alldata, group.by = "tech_10X", reduction = "tsne")
+plot_grid(p3,p4,rel_widths = c(2,2))
+```
+
+```{r fig.width = 12}
+p5 <- DimPlot(alldata, group.by = "tech", reduction = "umap") 
+p6 <- DimPlot(alldata, group.by = "tech", reduction = "tsne")
+plot_grid(p5,p6,rel_widths = c(2,2))
+```
+
+```{r fig.width = 12}
+p7 <- DimPlot(alldata, group.by = "MajorCluster", reduction = "umap") 
+p8 <- DimPlot(alldata, group.by = "MajorCluster", reduction = "tsne")
+plot_grid(p7,p8,rel_widths = c(2,2))
+```
+
+# 4. Harmony Integration
+
+**Harmony**  
+
+> https://github.com/immunogenomics/harmony  
+> Overview of Harmony algorithm: PCA embeds cells into a space with reduced dimensionality. Harmony accepts the cell coordinates in this reduced space and runs an iterative algorithm to adjust for dataset specific effects. 
+
+```{r}
+dat.h <- alldata
+```
+
+## 4.2 Harmony by Patient
+
+```{r cache=TRUE}
+library(harmony)
+library(Rcpp)
+library(rlang)
+
+integrated.by.patient.h <- harmony::RunHarmony(dat.h, group.by.vars ="patient", assay.use = "RNA", plot_convergence = TRUE)
 ```
 
 ```{r}
-FeaturePlot(object = LUNG, features = celltype_marker_fine, cols = c("grey", "blue"), reduction = "tsne")
+integrated.by.patient.h
 ```
+
+```{r cache=TRUE}
+# Run UMAP
+integrated.by.patient.h <- RunUMAP(integrated.by.patient.h, dims = 1:100, reduction = "harmony")
+```
+
+```{r fig.width = 8}
+DimPlot(object = integrated.by.patient.h, group.by = "patient", reduction = "umap")
+```
+
+
+```{r fig.width = 12}
+p21 <- DimPlot(integrated.h, group.by = "Status", reduction = "umap") 
+p22 <- DimPlot(object = integrated.h, group.by = "Status", reduction = "tsne")
+plot_grid(p21,p22,rel_widths = c(2,2))
+```
+
+```{r fig.width = 12}
+p27 <- DimPlot(integrated.h, group.by = "Platform", reduction = "umap") 
+p28 <- DimPlot(object = integrated.h, group.by = "Platform", reduction = "tsne")
+plot_grid(p27,p28,rel_widths = c(2,2))
+```
+
+```{r}
+integrated.by.patient.h <- harmony::RunHarmony(dat.h, group.by.vars ="patient", assay.use = "RNA", plot_convergence = TRUE)
+```
+
+
+
+
+# 4. Seurat3 Integration
+```{r}
+dat.s <- alldata
+```
+
+```{r}
+split_seurat <- SplitObject(dat.s, split.by = "tech_10X")
+```
+
+* Integration by sample name
+
+```{r eval=FALSE}
+# Select the most variable features to use for integration
+integ_features <- SelectIntegrationFeatures(object.list = split_seurat, nfeatures = 3000)
+```
+
+Then, prepare the SCTransform object for integration.
+
+```{r eval=FALSE}
+# Prepare the SCT list object for integration
+split_seurat <- PrepSCTIntegration(object.list = split_seurat, 
+                                   anchor.features = integ_features)
+```
+
+Perform CCA, find the best buddies or anchors and filter incorrect anchors.  
+```{r eval=FALSE}
+# Find best buddies - can take a while to run
+integ_anchors <- FindIntegrationAnchors(object.list = split_seurat, 
+                                        normalization.method = "SCT", 
+                                        anchor.features = integ_features)
+```
+
+Integrate across conditions.
+```{r eval=FALSE}
+# Integrate across conditions
+integrated.s <- IntegrateData(anchorset = integ_anchors, normalization.method = "SCT")
+```
+
+```{r include=FALSE}
+integrated.s <- readRDS("data/integrated.obj/integrated-by-sample-seurat.RDS")
+```
+
+```{r}
+integrated.s
+```
+
+```{r cache=TRUE}
+integrated.s <- RunPCA(integrated.s, npcs = 30, verbose = F)
+integrated.s <- RunUMAP(integrated.s, dims = 1:25, reduction = "pca")
+integrated.s <- RunTSNE(object = integrated.s, dims = 1:25)
+```
+
+```{r fig.width = 12}
+p17 <- DimPlot(integrated.s, group.by = "SampleName", reduction = "umap") 
+p18 <- DimPlot(object = integrated.s, group.by = "SampleName", reduction = "tsne")
+plot_grid(p17,p18,rel_widths = c(2,2))
+```
+
+```{r fig.width = 12}
+p19 <- DimPlot(integrated.s, group.by = "Status", reduction = "umap") 
+p20 <- DimPlot(object = integrated.s, group.by = "Status", reduction = "tsne")
+plot_grid(p19,p20,rel_widths = c(2,2))
+```
+
+```{r fig.width = 12}
+p29 <- DimPlot(integrated.s, group.by = "Platform", reduction = "umap") 
+p30 <- DimPlot(object = integrated.s, group.by = "Platform", reduction = "tsne")
+plot_grid(p29,p30,rel_widths = c(2,2))
+```
+
+* Check integration by computing the LISI
+
+```{r eval=FALSE}
+library(lisi)
+
+s.umap.co <- Embeddings(object =integrated.s[["umap"]])
+s.tsne.co <- Embeddings(object =integrated.s[["tsne"]])
+
+meta.df <- data.frame(SampleName = integrated.s$SampleName, Platform = integrated.s$Platform, Status = integrated.s$Status)
+s.umap.res <- compute_lisi(s.umap.co, meta.df, c("SampleName", "Platform", "Status"))
+s.tsne.res <- compute_lisi(s.tsne.co, meta.df, c("SampleName", "Platform", "Status"))
+```
+
+```{r}
+summary(s.umap.res)
+```
+
+```{r}
+summary(s.tsne.res)
+```
+
+
+
+
+# 5. LISI Evaluation
+
+## 5.1 Check Before Integration
+```{r}
+# devtools::install_github("immunogenomics/lisi")
+library(lisi)
+library(Rcpp)
+
+umap.co <- Embeddings(object =alldata[["umap"]])
+
+meta.df <- data.frame(patient = alldata$patient, tech = alldata$tech, tech_10X = alldata$tech_10X)
+```
+
+```{r eval=FALSE}
+umap.res <- compute_lisi(umap.co, meta.df, c("patient", "tech", "tech_10X"))
+# save(umap.res,tsne.res,file = "../processedData/tmp.data/ori-lisi-res.RData")
+```
+
+```{r}
+summary(umap.res)
+```
+
+
+> Each row in the output data frame corresponds to a cell from X. The score (e.g. max 13.282) indicates the effective number of different categories represented in the local neighborhood of each cell. If the cells are well-mixed, then we might expect the LISI score to be near 46 for a categorical variable with 46 categories(e.g. "patient").
+
+## 5.2 Harmony Output
+
+### 5.2.1 Harmony by Patient
+
+```{r}
+library(lisi)
+h.umap.co <- Embeddings(object =integrated.h[["umap"]])
+h.tsne.co <- Embeddings(object =integrated.h[["tsne"]])
+
+meta.df <- data.frame(SampleName = integrated.h$SampleName, Platform = integrated.h$Platform, Status = integrated.h$Status)
+h.umap.res <- compute_lisi(h.umap.co, meta.df, c("SampleName", "Platform", "Status"))
+h.tsne.res <- compute_lisi(h.tsne.co, meta.df, c("SampleName", "Platform", "Status"))
+```
+
+```{r}
+summary(h.umap.res)
+```
+
 
 
 
