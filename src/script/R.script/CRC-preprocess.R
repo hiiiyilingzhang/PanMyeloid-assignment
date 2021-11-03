@@ -101,8 +101,17 @@ for (i in 1:nrow(CRC.myeloid.clean@meta.data)) {
   CRC.myeloid.clean@meta.data[i,"MajorCluster"] <- defineMajor(CRC.myeloid.clean@meta.data[i,"Sub_Cluster"])
 }
 
-saveRDS(CRC.myeloid.clean,file = "processedData/CRC.processsed/CRC-myeloid-filtered.RDS")
+colnames(CRC.myeloid.clean@meta.data)[2] <- "n_counts"
+colnames(CRC.myeloid.clean@meta.data)[3] <- "n_genes"
+colnames(CRC.myeloid.clean@meta.data)[6] <- "patient"
+colnames(CRC.myeloid.clean@meta.data)[7] <- "tissue"
+colnames(CRC.myeloid.clean@meta.data)[8] <- "tech"
 
+CRC.myeloid.clean[["cancer"]] <- "CRC"
+
+CRC.myeloid.clean@meta.data <- select(CRC.myeloid.clean@meta.data, one_of("n_counts","n_genes","cancer","patient","tissue","tech","tech_10X","percent_mito","percent_hsp","MajorCluster","Sub_Cluster"))
+
+saveRDS(CRC.myeloid.clean,file = "processedData/CRC.processsed/CRC-myeloid-filtered.RDS")
 ## ----------------------------
 
 ## Save as .h5 -----
