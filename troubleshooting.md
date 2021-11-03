@@ -40,6 +40,27 @@ gzip -t GSE154763_ESCA_normalized_expression.csv.gz
 
 **Check data integrity**
 
+```
+import os
+import gzip
+
+def check_integrity(local_file):
+    if local_file.endswith('.gz'):
+        with gzip.open(local_file, 'rb') as f:
+            try:
+                f.seek(-1, os.SEEK_END)
+            except:
+                return -1
+    return 0
+
+# Go through dir and check integrity
+# Return error data (gunzip shows invalid compressed data)
+for curDir, dirs, files in os.walk("../rawData"):
+    for file in files:
+        if check_integrity(os.path.join(curDir, file))!=0:
+            print(os.path.join(curDir, file))
+```
+
 ![](.gitbook/assets/image-20211027162531881.png)
 
 **SOLUTION: **Transfer it again, in binary mode
