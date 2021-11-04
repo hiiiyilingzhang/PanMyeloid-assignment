@@ -35,6 +35,7 @@ knitr::opts_chunk$set(
 library(Seurat)
 library(SeuratData)
 library(SeuratDisk)
+library(SeuratWrappers)
 
 # For data analysis
 library(dplyr)
@@ -46,10 +47,6 @@ library(ggplot2)
 library(cowplot)
 library(ggridges)
 library(ggsci)
-library(ggraph)
-library(clustree)
-library(ggplotass)
-library(ggplotAssist)
 ```
 
 ```{r}
@@ -88,16 +85,36 @@ alldata@meta.data %>%
     theme(plot.title = element_text(hjust=0.5, face="bold"),legend.position="none") +
     ggtitle("NCells")
 ```
+* Cell number check
+```{r fig.width=12}
+cell_tech <- alldata@meta.data %>% 
+  ggplot(aes(fill=tech_10X, x=tech_10X)) + 
+  geom_bar(alpha = 0.75) + ggtitle("NCells") +
+  theme_classic() +
+  scale_fill_npg()
+cell_cancer <- alldata@meta.data %>% 
+  ggplot(aes(fill=cancer, x=cancer)) + 
+  geom_bar(alpha = 0.75) + ggtitle("NCells") +
+  theme_classic() +
+  scale_fill_simpsons()
+plot_grid(cell_tech,cell_cancer,rel_widths = c(1,2))
+```
 
-```{r fig.width=5}
-alldata@meta.data %>% 
-    ggplot(aes(x=tech_10X, fill=tech_10X)) + 
-    geom_bar() +
-    theme_classic() +
-    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
-    theme(plot.title = element_text(hjust=0.5, face="bold"),legend.position="none") +
-    ggtitle("NCells") + 
-    scale_fill_simpsons()
+* UMI counts (transcripts) per cell
+```{r fig.width=12}
+count_tech <- alldata@meta.data %>% 
+  ggplot(aes(fill=tech_10X, x=n_counts)) + 
+  geom_density(alpha = 0.3) + 
+  scale_x_log10() + 
+  theme_classic() +
+  scale_fill_npg()
+count_cancer <- alldata@meta.data %>% 
+  ggplot(aes(fill=cancer, x=n_counts)) + 
+  geom_density(alpha = 0.3) + 
+  scale_x_log10() + 
+  theme_classic() +
+  scale_fill_simpsons()
+plot_grid(count_tech,count_cancer,rel_widths = c(2,2))
 ```
 
 # 3. Dimensionality Reduction
@@ -145,160 +162,111 @@ plot_grid(p7,p8,rel_widths = c(2,2))
 
 # 4. Harmony Integration
 
-**Harmony**  
-
-> https://github.com/immunogenomics/harmony  
-> Overview of Harmony algorithm: PCA embeds cells into a space with reduced dimensionality. Harmony accepts the cell coordinates in this reduced space and runs an iterative algorithm to adjust for dataset specific effects. 
+```{r}
+library(harmony)
+library(Rcpp)
+library(rlang)
+```
 
 ```{r}
 dat.h <- alldata
 ```
 
-## 4.2 Harmony by Patient
+```{r}
+timestart<-Sys.time()
 
-```{r cache=TRUE}
-library(harmony)
-library(Rcpp)
-library(rlang)
+integrated.by.both.h <- harmony::RunHarmony(dat.h, group.by.vars =c("tech_10X","patient"), assay.use = "RNA", plot_convergence = TRUE)
 
-integrated.by.patient.h <- harmony::RunHarmony(dat.h, group.by.vars ="patient", assay.use = "RNA", plot_convergence = TRUE)
+timeend<-Sys.time()
 ```
 
 ```{r}
-integrated.by.patient.h
+runningtime<-timeend-timestart
+print(runningtime)
 ```
 
-```{r cache=TRUE}
+```{r}
 # Run UMAP
-integrated.by.patient.h <- RunUMAP(integrated.by.patient.h, dims = 1:100, reduction = "harmony")
-```
-
-```{r fig.width = 8}
-DimPlot(object = integrated.by.patient.h, group.by = "patient", reduction = "umap")
-```
-
-
-```{r fig.width = 12}
-p21 <- DimPlot(integrated.h, group.by = "Status", reduction = "umap") 
-p22 <- DimPlot(object = integrated.h, group.by = "Status", reduction = "tsne")
-plot_grid(p21,p22,rel_widths = c(2,2))
+integrated.by.both.h <- RunUMAP(integrated.by.both.h, dims = 1:100, reduction = "harmony")
 ```
 
 ```{r fig.width = 12}
-p27 <- DimPlot(integrated.h, group.by = "Platform", reduction = "umap") 
-p28 <- DimPlot(object = integrated.h, group.by = "Platform", reduction = "tsne")
-plot_grid(p27,p28,rel_widths = c(2,2))
+p_tech <- DimPlot(object = integrated.by.both.h, group.by = "tech_10X", reduction = "umap")
+p_patient <- DimPlot(object = integrated.by.both.h, group.by = "patient", reduction = "umap") +NoLegend()
+plot_grid(p_tech,p_patient,rel_widths = c(2,2))
+```
+
+# 4. LIGER Integration
+```{r}
+library(rliger)
 ```
 
 ```{r}
-integrated.by.patient.h <- harmony::RunHarmony(dat.h, group.by.vars ="patient", assay.use = "RNA", plot_convergence = TRUE)
+dat.l <- alldata
+dat.l
 ```
 
-
-
-
-# 4. Seurat3 Integration
 ```{r}
+dat.l <- ScaleData(dat.l, split.by = "patient", do.center = FALSE)
+dat.l <- RunOptimizeALS(dat.l, k = 20, lambda = 5, split.by = "patient")
+dat.l <- RunQuantileNorm(dat.l, split.by = "patient")
+```
+
+# 5. Seurat3 Integration
+
+---
+
+Posing error: caught segfault, address (nil), cause 'memory not mapped'  
+
+[Issue#](https://github.com/satijalab/seurat/issues/4628) exists on GitHub with bug label but no responses.  
+
+Maybe due to insufficient menory? Anyway, just show the codes below.
+
+---
+
+```{r eval=FALSE}
 dat.s <- alldata
 ```
 
-```{r}
-split_seurat <- SplitObject(dat.s, split.by = "tech_10X")
-```
-
-* Integration by sample name
-
 ```{r eval=FALSE}
-# Select the most variable features to use for integration
-integ_features <- SelectIntegrationFeatures(object.list = split_seurat, nfeatures = 3000)
-```
+split_seurat <- SplitObject(dat.s, split.by = "patient")
 
-Then, prepare the SCTransform object for integration.
+# Normalize and identify variable features for each dataset independently
+split_seurat <- lapply(X = split_seurat, FUN = function(x) {
+    x <- NormalizeData(x)
+    x <- FindVariableFeatures(x, selection.method = "vst", nfeatures = 2000)
+})
 
-```{r eval=FALSE}
-# Prepare the SCT list object for integration
-split_seurat <- PrepSCTIntegration(object.list = split_seurat, 
-                                   anchor.features = integ_features)
+# select features that are repeatedly variable across datasets for integration
+integ_features <- SelectIntegrationFeatures(object.list = split_seurat)
 ```
 
 Perform CCA, find the best buddies or anchors and filter incorrect anchors.  
 ```{r eval=FALSE}
 # Find best buddies - can take a while to run
 integ_anchors <- FindIntegrationAnchors(object.list = split_seurat, 
-                                        normalization.method = "SCT", 
-                                        anchor.features = integ_features)
+                                        normalization.method = "LogNormalize", 
+                                        anchor.features = integ_features,
+                                        dims = 1:20, reduction = "rpca")
 ```
 
 Integrate across conditions.
 ```{r eval=FALSE}
 # Integrate across conditions
-integrated.s <- IntegrateData(anchorset = integ_anchors, normalization.method = "SCT")
+integrated.s <- IntegrateData(anchorset = integ_anchors, normalization.method = "LogNormalize")
 ```
-
-```{r include=FALSE}
-integrated.s <- readRDS("data/integrated.obj/integrated-by-sample-seurat.RDS")
-```
-
-```{r}
-integrated.s
-```
-
-```{r cache=TRUE}
-integrated.s <- RunPCA(integrated.s, npcs = 30, verbose = F)
-integrated.s <- RunUMAP(integrated.s, dims = 1:25, reduction = "pca")
-integrated.s <- RunTSNE(object = integrated.s, dims = 1:25)
-```
-
-```{r fig.width = 12}
-p17 <- DimPlot(integrated.s, group.by = "SampleName", reduction = "umap") 
-p18 <- DimPlot(object = integrated.s, group.by = "SampleName", reduction = "tsne")
-plot_grid(p17,p18,rel_widths = c(2,2))
-```
-
-```{r fig.width = 12}
-p19 <- DimPlot(integrated.s, group.by = "Status", reduction = "umap") 
-p20 <- DimPlot(object = integrated.s, group.by = "Status", reduction = "tsne")
-plot_grid(p19,p20,rel_widths = c(2,2))
-```
-
-```{r fig.width = 12}
-p29 <- DimPlot(integrated.s, group.by = "Platform", reduction = "umap") 
-p30 <- DimPlot(object = integrated.s, group.by = "Platform", reduction = "tsne")
-plot_grid(p29,p30,rel_widths = c(2,2))
-```
-
-* Check integration by computing the LISI
-
-```{r eval=FALSE}
-library(lisi)
-
-s.umap.co <- Embeddings(object =integrated.s[["umap"]])
-s.tsne.co <- Embeddings(object =integrated.s[["tsne"]])
-
-meta.df <- data.frame(SampleName = integrated.s$SampleName, Platform = integrated.s$Platform, Status = integrated.s$Status)
-s.umap.res <- compute_lisi(s.umap.co, meta.df, c("SampleName", "Platform", "Status"))
-s.tsne.res <- compute_lisi(s.tsne.co, meta.df, c("SampleName", "Platform", "Status"))
-```
-
-```{r}
-summary(s.umap.res)
-```
-
-```{r}
-summary(s.tsne.res)
-```
-
-
 
 
 # 5. LISI Evaluation
 
-## 5.1 Check Before Integration
 ```{r}
 # devtools::install_github("immunogenomics/lisi")
 library(lisi)
 library(Rcpp)
+```
 
+## 5.1 Check Before Integration
+```{r}
 umap.co <- Embeddings(object =alldata[["umap"]])
 
 meta.df <- data.frame(patient = alldata$patient, tech = alldata$tech, tech_10X = alldata$tech_10X)
@@ -318,24 +286,14 @@ summary(umap.res)
 
 ## 5.2 Harmony Output
 
-### 5.2.1 Harmony by Patient
-
 ```{r}
-library(lisi)
-h.umap.co <- Embeddings(object =integrated.h[["umap"]])
-h.tsne.co <- Embeddings(object =integrated.h[["tsne"]])
-
-meta.df <- data.frame(SampleName = integrated.h$SampleName, Platform = integrated.h$Platform, Status = integrated.h$Status)
-h.umap.res <- compute_lisi(h.umap.co, meta.df, c("SampleName", "Platform", "Status"))
-h.tsne.res <- compute_lisi(h.tsne.co, meta.df, c("SampleName", "Platform", "Status"))
+h.both.umap.co <- Embeddings(object =integrated.by.both.h[["umap"]])
+h.both.umap.res <- compute_lisi(h.both.umap.co, meta.df, c("patient", "tech", "tech_10X"))
 ```
 
 ```{r}
-summary(h.umap.res)
+summary(h.both.umap.res)
 ```
-
-
-
 
 
 # Supplemental Information
