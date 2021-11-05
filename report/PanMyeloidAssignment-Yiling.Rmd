@@ -87,7 +87,7 @@ alldata@meta.data %>%
     ggtitle("NCells")
 ```
 * Cell number check
-```{r fig.width=12}
+```{r fig.width=10}
 cell_tech <- alldata@meta.data %>% 
   ggplot(aes(fill=tech_10X, x=tech_10X)) + 
   geom_bar(alpha = 0.75) + ggtitle("NCells") +
@@ -102,7 +102,7 @@ plot_grid(cell_tech,cell_cancer,rel_widths = c(1,2))
 ```
 
 * UMI counts (transcripts) per cell
-```{r fig.width=12}
+```{r fig.width=10}
 count_tech <- alldata@meta.data %>% 
   ggplot(aes(fill=tech_10X, x=n_counts)) + ggtitle("NCounts") +
   geom_density(alpha = 0.3) + 
@@ -201,18 +201,16 @@ p_patient <- DimPlot(object = integrated.by.both.h, group.by = "patient", reduct
 plot_grid(p_patient,p_cls,rel_widths = c(2,2))
 ```
 
-# 4. LIGER Integration
+# 5. LIGER Integration
 ```{r}
 library(rliger)
 ```
 
-```{r eval=FALSE}
+```{r}
 dat.l <- alldata
-`%!in%` <- Negate(`%in%`)
-dat.l <- subset(alldata, patient %!in% c("P0411","P0720","P1212","P1228","P20181211","P1025"))
 ```
 
-```{r}
+```{r cache=TRUE}
 dat.l <- ScaleData(dat.l, split.by = "tech_10X", do.center = FALSE)
 dat.l <- RunOptimizeALS(dat.l, k = 20, lambda = 5, split.by = "tech_10X",)
 dat.l <- RunQuantileNorm(dat.l, split.by = "tech_10X")
@@ -224,7 +222,7 @@ dat.l <- RunUMAP(dat.l, dims = 1:ncol(dat.l[["iNMF"]]), reduction = "iNMF")
 DimPlot(dat.l, group.by = c("tech_10X", "MajorCluster"), ncol = 2)
 ```
 
-# 5. Seurat3 Integration
+# 6. Seurat3 Integration
 
 ---
 
@@ -269,7 +267,7 @@ integrated.s <- IntegrateData(anchorset = integ_anchors, normalization.method = 
 ```
 
 
-# 5. LISI Evaluation
+# 7. LISI Evaluation
 
 ```{r}
 # devtools::install_github("immunogenomics/lisi")
@@ -277,7 +275,7 @@ library(lisi)
 library(Rcpp)
 ```
 
-## 5.1 Check Before Integration
+## 7.1 Check Before Integration
 ```{r}
 umap.co <- Embeddings(object =alldata[["umap"]])
 meta.df <- data.frame(patient = alldata$patient, tech = alldata$tech, tech_10X = alldata$tech_10X)
@@ -295,7 +293,13 @@ summary(umap.res)
 
 > Each row in the output data frame corresponds to a cell from X. The score (e.g. max 13.282) indicates the effective number of different categories represented in the local neighborhood of each cell. If the cells are well-mixed, then we might expect the LISI score to be near 46 for a categorical variable with 46 categories(e.g. "patient").
 
-## 5.2 Harmony Output
+```{r}
+vis_ori <- rbind(data.frame(Score = umap.res$patient, Batch = "Patient", Method = "None"),
+                data.frame(Score = umap.res$tech, Batch = "Tech", Method = "None"),
+                data.frame(Score = umap.res$tech_10X, Batch = "Tech_10X", Method = "None"))
+```
+
+## 7.2 Harmony Output
 
 ```{r}
 h.both.umap.co <- Embeddings(object =integrated.by.both.h[["umap"]])
@@ -305,8 +309,13 @@ h.both.umap.res <- compute_lisi(h.both.umap.co, meta.df, c("patient", "tech", "t
 ```{r}
 summary(h.both.umap.res)
 ```
+```{r}
+vis_h <- rbind(data.frame(Score = h.both.umap.res$patient, Batch = "Patient", Method = "Harmony"),
+                data.frame(Score = h.both.umap.res$tech, Batch = "Tech", Method = "Harmony"),
+                data.frame(Score = h.both.umap.res$tech_10X, Batch = "Tech_10X", Method = "Harmony"))
+```
 
-## 5.3 LIGER Output
+## 7.3 LIGER Output
 ```{r}
 l.both.umap.co <- Embeddings(object =dat.l[["umap"]])
 l.both.umap.res <- compute_lisi(l.both.umap.co, meta.df, c("patient", "tech", "tech_10X"))
@@ -316,6 +325,50 @@ l.both.umap.res <- compute_lisi(l.both.umap.co, meta.df, c("patient", "tech", "t
 summary(l.both.umap.res)
 ```
 
+```{r}
+vis_l <- rbind(data.frame(Score = l.both.umap.res$patient, Batch = "Patient", Method = "LIGER"),
+                data.frame(Score = l.both.umap.res$tech, Batch = "Tech", Method = "LIGER"),
+                data.frame(Score = l.both.umap.res$tech_10X, Batch = "Tech_10X", Method = "LIGER"))
+```
+
+## 7.4 Scanorama Output
+```{r cache=TRUE}
+# Convert("../processedData/alldata.obj/finish-integration-with-umap.h5ad", dest = "h5seurat", overwrite = TRUE)
+scanorama <- LoadH5Seurat("../processedData/alldata.obj/finish-integration-with-umap.h5seurat",meta.data=F,reductions = "umap")
+scanorama.meta <- read.csv("../processedData/alldata.obj/alldata-metadata.csv",header = T, row.names = 1)
+scanorama@meta.data <- scanorama.meta
+scanorama
+```
+
+```{r}
+scanorama.umap.co <- Embeddings(object =scanorama[["umap"]])
+scanorama.umap.res <- compute_lisi(scanorama.umap.co, meta.df, c("patient", "tech", "tech_10X"))
+```
+
+```{r}
+summary(scanorama.umap.res)
+```
+
+```{r}
+vis_sc <- rbind(data.frame(Score = scanorama.umap.res$patient, Batch = "Patient", Method = "Scanorama"),
+                data.frame(Score = scanorama.umap.res$tech, Batch = "Tech", Method = "Scanorama"),
+                data.frame(Score = scanorama.umap.res$tech_10X, Batch = "Tech_10X", Method = "Scanorama"))
+```
+
+## 7.5 Visualization
+
+```{r}
+vis_all <- rbind(vis_ori,vis_h,vis_l,vis_sc)
+```
+
+```{r fig.width=12}
+ggplot(vis_all, aes(x=Method, y=Score, fill=Method)) + 
+    geom_violin(position="dodge") + 
+    geom_boxplot(width=0.1, color="gray30", alpha=0.3, outlier.shape = 21,outlier.colour="transparent") +
+    facet_wrap(~Batch, scale="free") +
+    xlab("") + ylab("log10(Score)") + 
+    scale_fill_simpsons(alpha = 0.8) + scale_y_log10()
+```
 
 # Supplemental Information
 
