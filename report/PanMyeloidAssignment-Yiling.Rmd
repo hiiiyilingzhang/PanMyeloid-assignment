@@ -3,16 +3,14 @@ title: "PanMyeloid Assignment--Data Exploration"
 author: "ZHANG, Yiling"
 date: "`r Sys.Date()`"
 output:
-  rmdformats::robobook:
-    code_folding: show
-    self_contained: true
+  rmdformats::readthedown:
+    self contained: true
     thumbnails: false
     lightbox: true
     df_print: paged
+    code_folding: show
     gallery: false
-    highlight: tango
-pkgdown:
-  as_is: true    
+    highlight: tango   
 ---
 
 
@@ -65,7 +63,7 @@ hfile$index()
 hfile$close_all()
 ```
 
-```{r cache=TRUE}
+```{r}
 # Convert("../processedData/alldata.obj/regressed-alldata.h5ad", dest = "h5seurat", overwrite = TRUE)
 alldata <- LoadH5Seurat("../processedData/alldata.obj/regressed-alldata.h5seurat",meta.data=F)
 alldata.meta <- read.csv("../processedData/alldata.obj/alldata-metadata.csv",header = T, row.names = 1)
@@ -77,7 +75,7 @@ alldata
 head(alldata@meta.data)
 ```
 
-```{r}
+```{r fig.width=10}
 alldata@meta.data %>% 
     ggplot(aes(x=patient, fill=patient)) + 
     geom_bar() +
@@ -120,7 +118,7 @@ plot_grid(count_tech,count_cancer,rel_widths = c(2,2))
 
 # 3. Dimensionality Reduction
 
-```{r cache = TRUE,fig.width = 5}
+```{r fig.width = 5}
 alldata <- FindVariableFeatures(alldata,selection.method = "vst",nfeatures = 2000)
 alldata <- RunPCA(alldata, npcs = 100, verbose = FALSE)
 ElbowPlot(alldata,ndims = 100)
@@ -131,7 +129,7 @@ ElbowPlot(alldata,ndims = 100)
 pc.num=1:100
 ```
 
-```{r cache=TRUE}
+```{r}
 # Run UMAP
 alldata <- RunUMAP(alldata, dims = pc.num, reduction = "pca")
 alldata <- RunTSNE(alldata, dims = pc.num)
@@ -174,16 +172,7 @@ dat.h <- alldata
 ```
 
 ```{r}
-timestart<-Sys.time()
-
 integrated.by.both.h <- harmony::RunHarmony(dat.h, group.by.vars =c("tech_10X","patient"), assay.use = "RNA", plot_convergence = TRUE)
-
-timeend<-Sys.time()
-```
-
-```{r}
-runningtime<-timeend-timestart
-print(runningtime)
 ```
 
 ```{r}
@@ -210,7 +199,7 @@ library(rliger)
 dat.l <- alldata
 ```
 
-```{r cache=TRUE}
+```{r}
 dat.l <- ScaleData(dat.l, split.by = "tech_10X", do.center = FALSE)
 dat.l <- RunOptimizeALS(dat.l, k = 20, lambda = 5, split.by = "tech_10X",)
 dat.l <- RunQuantileNorm(dat.l, split.by = "tech_10X")
@@ -281,7 +270,7 @@ umap.co <- Embeddings(object =alldata[["umap"]])
 meta.df <- data.frame(patient = alldata$patient, tech = alldata$tech, tech_10X = alldata$tech_10X)
 ```
 
-```{r eval=FALSE}
+```{r}
 umap.res <- compute_lisi(umap.co, meta.df, c("patient", "tech", "tech_10X"))
 # save(umap.res,tsne.res,file = "../processedData/tmp.data/ori-lisi-res.RData")
 ```
@@ -332,7 +321,7 @@ vis_l <- rbind(data.frame(Score = l.both.umap.res$patient, Batch = "Patient", Me
 ```
 
 ## 7.4 Scanorama Output
-```{r cache=TRUE}
+```{r}
 # Convert("../processedData/alldata.obj/finish-integration-with-umap.h5ad", dest = "h5seurat", overwrite = TRUE)
 scanorama <- LoadH5Seurat("../processedData/alldata.obj/finish-integration-with-umap.h5seurat",meta.data=F,reductions = "umap")
 scanorama.meta <- read.csv("../processedData/alldata.obj/alldata-metadata.csv",header = T, row.names = 1)
