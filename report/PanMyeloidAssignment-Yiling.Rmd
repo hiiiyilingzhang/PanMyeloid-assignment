@@ -38,6 +38,7 @@ library(SeuratDisk)
 library(SeuratWrappers)
 
 # For data analysis
+library(rlang)
 library(dplyr)
 library(tidyr)
 library(stringr)
@@ -103,13 +104,13 @@ plot_grid(cell_tech,cell_cancer,rel_widths = c(1,2))
 * UMI counts (transcripts) per cell
 ```{r fig.width=12}
 count_tech <- alldata@meta.data %>% 
-  ggplot(aes(fill=tech_10X, x=n_counts)) + 
+  ggplot(aes(fill=tech_10X, x=n_counts)) + ggtitle("NCounts") +
   geom_density(alpha = 0.3) + 
   scale_x_log10() + 
   theme_classic() +
   scale_fill_npg()
 count_cancer <- alldata@meta.data %>% 
-  ggplot(aes(fill=cancer, x=n_counts)) + 
+  ggplot(aes(fill=cancer, x=n_counts)) + ggtitle("NCounts") +
   geom_density(alpha = 0.3) + 
   scale_x_log10() + 
   theme_classic() +
@@ -191,9 +192,13 @@ integrated.by.both.h <- RunUMAP(integrated.by.both.h, dims = 1:100, reduction = 
 ```
 
 ```{r fig.width = 12}
-p_tech <- DimPlot(object = integrated.by.both.h, group.by = "tech_10X", reduction = "umap")
+DimPlot(integrated.by.both.h, group.by = c("tech_10X", "MajorCluster"), ncol = 2,reduction = "umap")
+```
+
+```{r fig.width=12}
+p_cls <- DimPlot(object = integrated.by.both.h, group.by = "MajorCluster", reduction = "umap")
 p_patient <- DimPlot(object = integrated.by.both.h, group.by = "patient", reduction = "umap") +NoLegend()
-plot_grid(p_tech,p_patient,rel_widths = c(2,2))
+plot_grid(p_patient,p_cls,rel_widths = c(2,2))
 ```
 
 # 4. LIGER Integration
@@ -201,15 +206,22 @@ plot_grid(p_tech,p_patient,rel_widths = c(2,2))
 library(rliger)
 ```
 
-```{r}
+```{r eval=FALSE}
 dat.l <- alldata
-dat.l
+`%!in%` <- Negate(`%in%`)
+dat.l <- subset(alldata, patient %!in% c("P0411","P0720","P1212","P1228","P20181211","P1025"))
 ```
 
 ```{r}
-dat.l <- ScaleData(dat.l, split.by = "patient", do.center = FALSE)
-dat.l <- RunOptimizeALS(dat.l, k = 20, lambda = 5, split.by = "patient")
-dat.l <- RunQuantileNorm(dat.l, split.by = "patient")
+dat.l <- ScaleData(dat.l, split.by = "tech_10X", do.center = FALSE)
+dat.l <- RunOptimizeALS(dat.l, k = 20, lambda = 5, split.by = "tech_10X",)
+dat.l <- RunQuantileNorm(dat.l, split.by = "tech_10X")
+```
+
+```{r fig.width=12}
+# Dimensional reduction and plotting
+dat.l <- RunUMAP(dat.l, dims = 1:ncol(dat.l[["iNMF"]]), reduction = "iNMF")
+DimPlot(dat.l, group.by = c("tech_10X", "MajorCluster"), ncol = 2)
 ```
 
 # 5. Seurat3 Integration
@@ -218,9 +230,9 @@ dat.l <- RunQuantileNorm(dat.l, split.by = "patient")
 
 Posing error: caught segfault, address (nil), cause 'memory not mapped'  
 
-[Issue#](https://github.com/satijalab/seurat/issues/4628) exists on GitHub with bug label but no responses.  
+[Issue#4628](https://github.com/satijalab/seurat/issues/4628) exists on GitHub with bug label but no responses.  
 
-Maybe due to insufficient menory? Anyway, just show the codes below.
+Maybe due to insufficient menory? Anyway, just show the codes below.  
 
 ---
 
@@ -268,7 +280,6 @@ library(Rcpp)
 ## 5.1 Check Before Integration
 ```{r}
 umap.co <- Embeddings(object =alldata[["umap"]])
-
 meta.df <- data.frame(patient = alldata$patient, tech = alldata$tech, tech_10X = alldata$tech_10X)
 ```
 
@@ -293,6 +304,16 @@ h.both.umap.res <- compute_lisi(h.both.umap.co, meta.df, c("patient", "tech", "t
 
 ```{r}
 summary(h.both.umap.res)
+```
+
+## 5.3 LIGER Output
+```{r}
+l.both.umap.co <- Embeddings(object =dat.l[["umap"]])
+l.both.umap.res <- compute_lisi(l.both.umap.co, meta.df, c("patient", "tech", "tech_10X"))
+```
+
+```{r}
+summary(l.both.umap.res)
 ```
 
 
