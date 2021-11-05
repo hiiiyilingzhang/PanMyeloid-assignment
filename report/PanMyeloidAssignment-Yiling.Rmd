@@ -344,10 +344,26 @@ vis_sc <- rbind(data.frame(Score = scanorama.umap.res$patient, Batch = "Patient"
                 data.frame(Score = scanorama.umap.res$tech_10X, Batch = "Tech_10X", Method = "Scanorama"))
 ```
 
-## 7.5 Visualization
+## 7.5 scGen Output
+```{r}
+scgen <- read.csv("../processedData/alldata.obj/scgen-data-umap.csv")
+scgen.umap.res <- compute_lisi(scanorama.umap.co, meta.df, c("patient", "tech", "tech_10X"))
+```
 
 ```{r}
-vis_all <- rbind(vis_ori,vis_h,vis_l,vis_sc)
+summary(scgen.umap.res)
+```
+
+```{r}
+vis_scgen <- rbind(data.frame(Score = scgen.umap.res$patient, Batch = "Patient", Method = "scGen"),
+                data.frame(Score = scgen.umap.res$tech, Batch = "Tech", Method = "scGen"),
+                data.frame(Score = scgen.umap.res$tech_10X, Batch = "Tech_10X", Method = "scGen"))
+```
+
+## 7.6 Visualization
+
+```{r}
+vis_all <- rbind(vis_ori,vis_h,vis_l,vis_sc,vis_scgen)
 ```
 
 ```{r fig.width=12}
