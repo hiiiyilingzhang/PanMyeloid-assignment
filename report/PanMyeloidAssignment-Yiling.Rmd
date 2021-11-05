@@ -26,6 +26,10 @@ knitr::opts_chunk$set(
 )
 ```
 
+# Data Exploration Notebook
+
+---
+
 # 1. Environment Setting
 
 ```{r}
@@ -375,7 +379,7 @@ ggplot(vis_all, aes(x=Method, y=Score, fill=Method)) +
     scale_fill_simpsons(alpha = 0.8) + scale_y_log10()
 ```
 
-# Supplemental Information
+# 8. Supplemental Information
 
 <details><summary>**▶ Session Info**</summary>
 ```{r echo=FALSE}
