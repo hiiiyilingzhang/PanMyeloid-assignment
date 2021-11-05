@@ -1,13 +1,13 @@
 # 😭 TROUBLESHOOTING
 
-## Environment Setting
+## Environment
 
 ### file size doesn't match expectation
 
 ![](.gitbook/assets/image-20211027094707372.png)
 
 ```
- mamba install -c conda-forge python-igraph leidenalg
+mamba install -c conda-forge python-igraph leidenalg
 ```
 
 replacing `memba install`with `conda install` is perfectly normal\
@@ -20,12 +20,40 @@ replacing `memba install`with `conda install` is perfectly normal\
 > I think the problem might be that the `mirrors.bfsu.edu.cn` return the wrong data because no `User-Agent` is set
 
 ```
- # https://mirrors.sustech.edu.cn/help/anaconda.html#introduction
-
- conda config --add channels https://mirrors.sustech.edu.cn/anaconda/pkgs/free/ 
- conda config --add channels https://mirrors.sustech.edu.cn/anaconda/pkgs/main/ 
- conda config --set show_channel_urls yes
+# https://mirrors.sustech.edu.cn/help/anaconda.html#introduction
+conda config --add channels https://mirrors.sustech.edu.cn/anaconda/pkgs/free/ 
+conda config --add channels https://mirrors.sustech.edu.cn/anaconda/pkgs/main/ 
+conda config --set show_channel_urls yes
 ```
+
+### Insufficient memory(maybe?)
+
+Seurat v4 for `FindIntegrationAnchors()`
+
+```
+split_seurat <- SplitObject(dat.s, split.by = "patient")
+
+# Normalize and identify variable features for each dataset independently
+split_seurat <- lapply(X = split_seurat, FUN = function(x) {
+    x <- NormalizeData(x)
+    x <- FindVariableFeatures(x, selection.method = "vst", nfeatures = 2000)
+})
+
+# select features that are repeatedly variable across datasets for integration
+integ_features <- SelectIntegrationFeatures(object.list = split_seurat)
+
+# Find best buddies - can take a while to run
+integ_anchors <- FindIntegrationAnchors(object.list = split_seurat, 
+                                        normalization.method = "LogNormalize", 
+                                        anchor.features = integ_features,
+                                        dims = 1:20, reduction = "rpca")
+```
+
+![](<.gitbook/assets/image (1).png>)
+
+[https://github.com/satijalab/seurat/issues/4628](https://github.com/satijalab/seurat/issues/4628)
+
+added the bug label and no response yet, maybe due to insufficient memory
 
 ## Initialize Data
 
