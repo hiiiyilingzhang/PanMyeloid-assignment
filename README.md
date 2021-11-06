@@ -14,3 +14,79 @@ Here is **source code** for assignment. Report and relevant files please refer t
 
 ---
 
+```bash
+├── output
+│   └── rmd-output
+├── PanMyeloid-assignment.Rproj
+├── processedData
+│   ├── alldata.obj
+│   │   ├── alldata-metadata.csv
+│   │   ├── bbknn-completed.h5ad
+│   │   ├── compute-HVG-alldata.h5ad
+│   │   ├── compute-HVG-PCA-alldata.h5ad
+│   │   ├── finish-integration-with-umap.h5ad
+│   │   ├── finish-integration-with-umap.h5seurat
+│   │   ├── newly-generated-data-fixed-obs.h5ad
+│   │   ├── regressed-alldata.h5ad
+│   │   ├── regressed-alldata.h5seurat
+│   │   ├── scgen-data-umap.csv
+│   │   ├── scgen-data-umap.txt
+│   │   ├── scgen-data-with-umap.h5ad
+│   │   └── scgen-data-with-umap.h5seurat
+│   ├── CRC.processsed
+│   │   ├── CRC-myeloid-filtered.h5ad
+│   │   ├── CRC-myeloid-filtered.h5Seurat
+│   │   ├── CRC-myeloid-filtered.RDS
+│   │   └── CRC-myeloid-raw.RDS
+│   └── tmp.data
+│       ├── ori-lisi-res.RData
+│       ├── pancreas.h5ad
+│       └── saved_models
+│           └── model_batch_removal.pt
+│               ├── attr.pkl
+│               ├── model_params.pt
+│               └── var_names.csv
+├── rawData
+│   ├── anno.ref
+│   │   ├── hpca-se.RData
+│   │   └── ImmGen.RData
+│   ├── CRC
+│   │   ├── GSE146771_CRC.Leukocyte.10x.Metadata.txt.gz
+│   │   ├── GSE146771_CRC.Leukocyte.10x.TPM.txt.gz
+│   │   ├── GSE146771_CRC.Leukocyte.Smart-seq2.Metadata.txt.gz
+│   │   └── GSE146771_CRC.Leukocyte.Smart-seq2.TPM.txt.gz
+│   ├── ESCA
+│   │   ├── GSE154763_ESCA_metadata.csv.gz
+│   │   └── GSE154763_ESCA_normalized_expression.csv.gz
+│   ├── LYM
+│   │   ├── GSE154763_LYM_metadata.csv.gz
+│   │   └── GSE154763_LYM_normalized_expression.csv.gz
+│   ├── MYE
+│   │   ├── GSE154763_MYE_metadata.csv.gz
+│   │   └── GSE154763_MYE_normalized_expression.csv.gz
+│   ├── OV-FTC
+│   │   ├── GSE154763_OV-FTC_metadata.csv.gz
+│   │   └── GSE154763_OV-FTC_normalized_expression.csv.gz
+│   ├── PAAD
+│   │   ├── GSE154763_PAAD_metadata.csv.gz
+│   │   └── GSE154763_PAAD_normalized_expression.csv.gz
+│   └── UCEC
+│       ├── GSE154763_UCEC_metadata.csv.gz
+│       └── GSE154763_UCEC_normalized_expression.csv.gz
+├── README.md
+├── report
+│   ├── DataExploration-scGen.ipynb
+│   ├── PanMyeloidAssignment-Yiling.html
+│   ├── PanMyeloidAssignment-Yiling.Rmd
+│   └── PaperReproduction.ipynb
+└── src
+    ├── script
+    │   ├── py.script
+    │   │   └── 01-InitializeData.py
+    │   └── R.script
+    │       ├── 01-InitializeSeuratObject.R
+    │       └── CRC-preprocess.R
+    └── upload-pic
+        ├── CellNumberChexk.png
+        └── sampleDiscription.png
+```
