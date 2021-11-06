@@ -15,13 +15,13 @@ Here is the **report** for assignment. Other notebooks and files please refer to
 
 ## Summary
 
-Single-cell RNA sequencing(scRNA-seq) continues to grow at an unprecedented pace, and while achievements and challenges co-exist when integrating data. Samples, conditions, modalities, or batches all deserve extra attention for data integration, which holds the promise for better characterization of cell identities. According to the statistics, 147 tools have been developed for scRNA-seq data integration\[1]. Understanding the idea of algorithm is extremely important for choosing analytical method. In this assignment, I replicated Figure S3A from the paper published on Cell [(Cheng et al., 2021)](https://www.cell.com/cell/fulltext/S0092-8674\(21\)00010-6#supplementaryMaterial), trying to integrate datasets with 7 cancer types, 46 patients and 45251 myeloid cells via bbknn and Scanorama. Furthermore, I employed other integration tools, like scGen, Harmony and LIGER, and evaluate the integration results with the help of LISI method.
+Single-cell RNA sequencing(scRNA-seq) continues to grow at an unprecedented pace, and while achievements and challenges co-exist when integrating data. Samples, conditions, modalities, or batches all deserve extra attention for data integration, which holds the promise for better characterization of cell identities. According to the statistics, 147 tools have been developed for scRNA-seq data integration\[1,2]. Understanding the idea of algorithm is extremely important for choosing analytical method. In this assignment, I replicated Figure S3A from the paper published on Cell [(Cheng et al., 2021)](https://www.cell.com/cell/fulltext/S0092-8674\(21\)00010-6#supplementaryMaterial), trying to integrate datasets with 7 cancer types, 46 patients and 45251 myeloid cells via bbknn and Scanorama. Furthermore, I employed other integration tools, like scGen, Harmony and LIGER, and evaluate the integration results with the help of LISI method.
 
 ## Data Description
 
 ![Sample Info](.gitbook/assets/sampleDiscription.png)
 
-I downloaded newly generated datasets([GSE154763](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE154763)) for LYM, PAAD, UCEC, MYE, ESCA and OV-FTC and collected dataset([GSE146771](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE146771)) for CRC. Notably, CRC dataset, including 10X 3' and Smart-Seq2, is only available for raw TPM counts, while other datasets have already pass the quality control procedure and normalized. For the samples here, we can observe the various cell number for each patient (e.g., P1228 has 22 cells, P0408 has 6556 cells). The huge variability may come from tissue/cell types, inaccurate estimation of input cell number, or poor conditions and death of cells during experiments\[2 [ttps://www.sciencedirect.com/science/article/pii/S1672022921000486](https://www.sciencedirect.com/science/article/pii/S1672022921000486)].
+I downloaded newly generated datasets([GSE154763](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE154763)) for LYM, PAAD, UCEC, MYE, ESCA and OV-FTC and collected dataset([GSE146771](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE146771)) for CRC. Notably, CRC dataset, including 10X 3' and Smart-Seq2, is only available for raw TPM counts, while other datasets have already pass the quality control procedure and normalized. For the samples here, we can observe the various cell number for each patient (e.g., P1228 has 22 cells, P0408 has 6556 cells). The huge variability may come from tissue/cell types, inaccurate estimation of input cell number, or poor conditions and death of cells during experiments\[3].
 
 ## Data Analysis Processing
 
@@ -37,8 +37,22 @@ CRC datasets were initialized into `Seurat Object` after downloaded and quality 
 
 CRC metadata has also been amended in order to make it consistent with other newly generated data, including fixing column names and calculating the percentage of count for heat shock protein associated genes (HSP). After quality control, CRC dataset was saved as `.h5seurat` file, which can be converted to `.h5ad` file by package _SeuratDisk_. `.h5ad` file was then loaded into Python and generated `AnnData` object for downstream analysis via scanpy.
 
-#### 2. Merging with Other Datasets
+#### 2. Merging and DimReduc
 
-Newly generated datasets(LYM, PAAD, UCEC, MYE, ESCA and OV-FTC)
+Newly generated datasets(LYM, PAAD, UCEC, MYE, ESCA and OV-FTC) were downloaded and initialized as joint `AnnData` object. Metadata were amended before, so they can be merged successfully. Next, I followed the dimension reduction procedure from the paper, with 2.000 high-variable genes and 100 PCs selected. Total count per cell, the percentage of mitochondrial gene count and the percentage of count for heat shock protein associated genes (HSP) were regressed out during scaling in order to minimize the effect.
+
+#### 3. Integration and Visualization
+
+Batch-removal has done in two levels: donors and platforms. The authors applied _bbknn_ algorithm with parameter to obtain a batch-corrected space, followed with Scanorama algorithm. Two-round of Scanorama has been performed, one for 3′ library and 5′ library protocols from 10x Genomics, another one for the diverse platforms, including 10x Genomics and inDrop.
+
+> The dimensionality of each dataset was further reduced using Uniform Manifold Approximation and Projection (UMAP) implemented in _scanpy.tl.umap_ function with default parameters.
 
 \
+Reference
+---------
+
+\[1] [https://www.scrna-tools.org/analysis](https://www.scrna-tools.org/analysis)
+
+\[2] [Zappia L, Phipson B, Oshlack A. "Exploring the single-cell RNA-seq analysis landscape with the scRNA-tools database", PLOS Computational Biology (2018)](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1006245)
+
+\[3] [Xiliang W, Yao H, Qiming Z, Xianwen R, Zemin Z, Direct Comparative Analyses of 10X Genomics Chromium and Smart-seq2, Genomics, Proteomics & Bioinformatics (2021)](https://www.sciencedirect.com/science/article/pii/S1672022921000486)
