@@ -27,7 +27,7 @@ I downloaded newly generated datasets([GSE154763](https://www.ncbi.nlm.nih.gov/g
 
 ### Paper Reproduction
 
-![WORKFLOW](.gitbook/assets/PaperReproduceWorkFlow.png)
+![](<.gitbook/assets/PaperReproduceWorkFlow (1).png>)
 
 #### 1. Quality Control for CRC Dataset
 
@@ -45,11 +45,11 @@ Newly generated datasets(LYM, PAAD, UCEC, MYE, ESCA and OV-FTC) were downloaded 
 
 Before integration, I examined the data with different batches. The top 100 principal components were used for UMAP visualization implemented in `scanpy.tl.umap` function with default parameters. We can see independent clusters when grouped by patients and platforms, indicating the existence of batches.
 
-![Before Batch Removal](.gitbook/assets/before.png)
+![Before Batch Correction](.gitbook/assets/before.png)
 
-Batch-removal has done in two levels: donors and platforms. The authors applied _bbknn_ algorithm with parameter to obtain a batch-corrected space, followed with Scanorama algorithm. Two-round of Scanorama has been performed, one for 3′ library and 5′ library protocols from 10x Genomics, another one for the diverse platforms, including 10x Genomics and inDrop. After batch-removal, we can observe the relatively mixed cell in different situations.
+Batch-correction has done in two levels: donors and platforms. The authors applied _bbknn_ algorithm with parameter to obtain a batch-corrected space, followed with Scanorama algorithm. Two-round of Scanorama has been performed, one for 3′ library and 5′ library protocols from 10x Genomics, another one for the diverse platforms, including 10x Genomics and inDrop. After batch-correction, we can observe the relatively mixed cell in different situations.
 
-![After Batch Removal](.gitbook/assets/after.png)
+![After Batch Correction](.gitbook/assets/after.png)
 
 From the integration result, monocytes and macrophages accounted for the largest proportion of tumor-infiltrating myeloid cells(TIMs), while pDCs and cDCs lineage were small sub-population at tumor site.
 
@@ -59,7 +59,7 @@ From the integration result, monocytes and macrophages accounted for the largest
 
 ![Data Exploration](.gitbook/assets/DataExploration.png)
 
-In this section, I tried different batch-removal methods, including scGen, LIGER and Harmony. Seurat v3 failed probably because insufficient memory, according to GitHub [issue#4628](https://github.com/satijalab/seurat/issues/4628). In order to assess the degree of mixing during batch correction and dataset integration, I calculated the metric, Local inverse Simpson’s index (LISI). LISI assigns a diversity score to each cell. It is computed for batch labels, and a score close to the expected number of batches denotes good mixing. For example, `tech_10X` contain three batches: 10X3, 10X5 and Smart-seq2. So, LISI value will ranges from 1 to 3 (1 is perfect separability, 3 is perfect mixing) and has a simple interpretation as the expected number of cells needed to be sampled before three are drawn from the same dataset.&#x20;
+In this section, I tried different batch-correction methods, including scGen, LIGER and Harmony. Seurat v3 failed probably because insufficient memory, according to GitHub [issue#4628](https://github.com/satijalab/seurat/issues/4628). In order to assess the degree of mixing during batch correction and dataset integration, I calculated the metric, Local inverse Simpson’s index (LISI). LISI assigns a diversity score to each cell. It is computed for batch labels, and a score close to the expected number of batches denotes good mixing. For example, `tech_10X` contain three batches: 10X3, 10X5 and Smart-seq2. So, LISI value will ranges from 1 to 3 (1 is perfect separability, 3 is perfect mixing) and has a simple interpretation as the expected number of cells needed to be sampled before three are drawn from the same dataset.&#x20;
 
 ![Methods Comparison](.gitbook/assets/compare2.png)
 
@@ -70,8 +70,6 @@ Violin and box plot were used for LISI visualization and it seems like harmony s
 > Based on our results, Harmony, LIGER, and Seurat 3 are the recommended methods for batch integration. Due to its significantly shorter runtime, Harmony is recommended as the first method to try, with the other methods as viable alternatives.
 
 ![LISI Result](<.gitbook/assets/image (2).png>)
-
-
 
 ## Algorithms used
 
@@ -160,7 +158,7 @@ Violin and box plot were used for LISI visualization and it seems like harmony s
 
 [2019 - Cell - Single-Cell Multi-omic Integration Compares and Contrasts Features of Brain Cell Identity](https://www.cell.com/cell/fulltext/S0092-8674\(19\)30504-5)
 
-* **Highlights:**
+* **Highlights: **Sensitive to technical variation and applicable for synchronized integration of cross-domain assays
 * **Methods:** Identifying shared and dataset-specific factors through integrative non-negative matrix factorization (iNMF)
   * Two major steps:
     1. Integrative nonnegative matrix factorization with dataset-specific factors
