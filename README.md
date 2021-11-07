@@ -194,6 +194,14 @@ Violin and box plot were used for LISI visualization and it seems like harmony s
       ![image-20211106202611715](.gitbook/assets/image-20211106202611715.png)
 * **Output:** A data frame of LISI values. Each row is a cell and each column is a different label\variable.
 
+## Discussion
+
+The goal of integration is to ensure that the cell types of one condition align with the same cell types of of the other condition. In other words, if we observe condition-specific clustering, it may indicates that we need to integrate the cells across conditions to ensure that cells of the same cell type cluster together. As the choice of batch correction method may impact the downstream analyses, the decision of which one to use should be really careful. Usually, researches use benchmark studies as guidance.
+
+Here in this PanMyeloid study, authors employed _bbknn_ methods to deal with batches between patients. The whole dataset consists by 210 patients, so computational resource requirements should be considered as an important factor when choosing a method. In the benchmark studies, _BBKNN_ shows less running time as the number of cells grow, and the performance remains stable as the number of batches increases, while other methods (expect for Harmony) will struggle to integrate hundreds of batches even if each batch is relatively small\[4,5].
+
+Several metrics have been raised up to evaluate if cells with similar expression profiles end up near each other, like Shannon entropy, mixing entropies, inverse Simpson index\[4,6]. These metrics can serve as a hint for researchers, even if they may not be relevant to all datasets and research questions.
+
 ## Reference
 
 \[1] [https://www.scrna-tools.org/analysis](https://www.scrna-tools.org/analysis)
@@ -203,3 +211,7 @@ Violin and box plot were used for LISI visualization and it seems like harmony s
 \[3] [Xiliang W, Yao H, Qiming Z, Xianwen R, Zemin Z, Direct Comparative Analyses of 10X Genomics Chromium and Smart-seq2, Genomics, Proteomics & Bioinformatics (2021)](https://www.sciencedirect.com/science/article/pii/S1672022921000486)
 
 \[4] [Tran, H.T.N., Ang, K.S., Chevrier, M. _et al._ A benchmark of batch-effect correction methods for single-cell RNA sequencing data. _Genome Biol_ 21\*\*,\*\* 12 (2020)](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-019-1850-9#Abs1)
+
+\[5] [Ruben C.G, Stijn D., Vladimir Y K., Martin H., Flexible comparison of batch correction methods for single-cell RNA-seq using BatchBench, _Nucleic Acids Research_ (2021)](https://doi.org/10.1093/nar/gkab004)
+
+\[6] [Haghverdi, L., Lun, A., Morgan, M. _et al._ Batch effects in single-cell RNA-sequencing data are corrected by matching mutual nearest neighbors. _Nat Biotechnol_ (2018)](https://doi.org/10.1038/nbt.4091)
